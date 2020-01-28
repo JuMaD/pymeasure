@@ -48,6 +48,7 @@ nosetests.xml
 coverage.xml
 *,cover
 .hypothesis/
+.pytest_cache
 
 # Translations
 *.mo
@@ -101,3 +102,10 @@ ENV/
 
 # PyPI
 .pypirc
+
+
+# VSCode
+settings.json
+
+# Vim
+*.swp

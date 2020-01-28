@@ -1,7 +1,7 @@
 #
 # This file is part of the PyMeasure package.
 #
-# Copyright (c) 2013-2017 PyMeasure Developers
+# Copyright (c) 2013-2019 PyMeasure Developers
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -183,7 +183,7 @@ class Results(object):
         h.append("Procedure: <%s>" % procedure)
         h.append("Parameters:")
         for name, parameter in self.parameters.items():
-            h.append("\t%s: %s" % (parameter.name, str(parameter)))
+            h.append("\t%s: %s" % (parameter.name, str(parameter).encode("unicode_escape").decode("utf-8")))
         h.append("Data:")
         self._header_count = len(h)
         h = [Results.COMMENT + l for l in h]  # Comment each line
@@ -229,13 +229,13 @@ class Results(object):
                 raise ValueError("Parsing a header which contains "
                                  "uncommented sections")
             if line.startswith("Procedure"):
-                regex = "<(?:(?P<module>[^>]+)\.)?(?P<class>[^.>]+)>"
+                regex = r"<(?:(?P<module>[^>]+)\.)?(?P<class>[^.>]+)>"
                 search = re.search(regex, line)
                 procedure_module = search.group("module")
                 procedure_class = search.group("class")
             elif line.startswith("\t"):
-                regex = ("\t(?P<name>[^:]+):\s(?P<value>[^\s]+)"
-                         "(?:\s(?P<units>.+))?")
+                regex = (r"\t(?P<name>[^:]+):\s(?P<value>[^\s]+)"
+                         r"(?:\s(?P<units>.+))?")
                 search = re.search(regex, line)
                 if search is None:
                     raise Exception("Error parsing header line %s." % line)
@@ -313,7 +313,7 @@ class Results(object):
             except Exception:
                 # Empty dataframe
                 self._data = pd.DataFrame(columns=self.procedure.DATA_COLUMNS)
-        else:  # Concatenate additional data
+        else:  # Concatenate additional data, if any, to already loaded data
             skiprows = len(self._data) + self._header_count
             chunks = pd.read_csv(
                 self.data_filename,
@@ -324,8 +324,13 @@ class Results(object):
             )
             try:
                 tmp_frame = pd.concat(chunks, ignore_index=True)
-                self._data = pd.concat([self._data, tmp_frame],
-                                       ignore_index=True)
+                # only append new data if there is any
+                # if no new data, tmp_frame dtype is object, which override's
+                # self._data's original dtype - this can cause problems plotting
+                # (e.g. if trying to plot int data on a log axis)
+                if len(tmp_frame) > 0:
+                    self._data = pd.concat([self._data, tmp_frame],
+                                           ignore_index=True)
             except Exception:
                 pass  # All data is up to date
         return self._data

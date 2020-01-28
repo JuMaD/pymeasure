@@ -1,7 +1,7 @@
 #
 # This file is part of the PyMeasure package.
 #
-# Copyright (c) 2013-2017 PyMeasure Developers
+# Copyright (c) 2013-2019 PyMeasure Developers
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -22,12 +22,17 @@
 # THE SOFTWARE.
 #
 
+import pytest
+from unittest import mock
+
 import os
 import tempfile
 import pickle
 from importlib.machinery import SourceFileLoader
-
+import pandas as pd
+import numpy as np
 from pymeasure.experiment.results import Results, CSVFormatter
+from pymeasure.experiment.procedure import Procedure, Parameter
 
 # Load the procedure, without it being in a module
 #data_path = os.path.join(os.path.dirname(__file__), 'data/procedure_for_testing.py')
@@ -69,3 +74,42 @@ def test_procedure_wrapper():
     assert hasattr(new_results, 'procedure')
     assert new_results.procedure.iterations == 101
     assert RandomProcedure.iterations.value == 100
+
+
+class TestResults:
+    # TODO: add a full set of Results tests
+
+    @mock.patch('pymeasure.experiment.results.open', mock.mock_open(), create=True)
+    @mock.patch('os.path.exists', return_value=True)
+    @mock.patch('pymeasure.experiment.results.pd.read_csv')
+    def test_regression_attr_data_when_up_to_date_should_retain_dtype(self,
+            read_csv_mock, path_exists_mock):
+        procedure_mock = mock.MagicMock(spec=Procedure)
+        result = Results(procedure_mock, 'test.csv')
+
+        read_csv_mock.return_value = [pd.DataFrame(data={
+                'A': [1,2,3,4,5,6,7],
+                'B': [2,3,4,5,6,7,8]
+            })]
+        first_data = result.data
+
+        # if no updates, read_csv returns a zero-row dataframe
+        read_csv_mock.return_value = [pd.DataFrame(data={
+            'A': [], 'B': []
+            }, dtype=object)]
+        second_data = result.data
+
+        assert second_data.iloc[:,0].dtype is not object
+        assert first_data.iloc[:,0].dtype is second_data.iloc[:,0].dtype
+        
+    def test_regression_param_str_should_not_include_newlines(self, tmpdir):
+        class DummyProcedure(Procedure):
+            par = Parameter('Generic Parameter with newline chars')           
+            DATA_COLUMNS = ['Foo', 'Bar', 'Baz'] 
+        procedure = DummyProcedure()
+        procedure.par = np.linspace(1,100,17)
+        filename = os.path.join(str(tmpdir), 'header_linebreak_test.csv')
+        result = Results(procedure, filename)
+        result.reload() # assert no error
+        pd.read_csv(filename, comment="#") # assert no error
+        assert (result.parameters['par'].value == np.linspace(1,100,17)).all()

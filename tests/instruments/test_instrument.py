@@ -1,7 +1,7 @@
 #
 # This file is part of the PyMeasure package.
 #
-# Copyright (c) 2013-2017 PyMeasure Developers
+# Copyright (c) 2013-2019 PyMeasure Developers
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -165,3 +165,17 @@ def test_measurement_dict_str_map():
     assert fake.x == 'Y'
     fake.write('3')
     assert fake.x == 'Z'
+
+
+def test_setting_process():
+    class Fake(FakeInstrument):
+        x = Instrument.setting(
+            "OUT %d", "",
+            set_process=lambda v: int(bool(v)),
+        )
+
+    fake = Fake()
+    fake.x = False
+    assert fake.read() == 'OUT 0'
+    fake.x = 2
+    assert fake.read() == 'OUT 1'

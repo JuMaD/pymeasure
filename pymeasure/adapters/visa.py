@@ -1,7 +1,7 @@
 #
 # This file is part of the PyMeasure package.
 #
-# Copyright (c) 2013-2017 PyMeasure Developers
+# Copyright (c) 2013-2019 PyMeasure Developers
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -27,6 +27,7 @@ import logging
 import copy
 import visa
 import numpy as np
+from pkg_resources import parse_version
 
 from .adapter import Adapter
 
@@ -37,28 +38,26 @@ log.addHandler(logging.NullHandler())
 # noinspection PyPep8Naming,PyUnresolvedReferences
 class VISAAdapter(Adapter):
     """ Adapter class for the VISA library using PyVISA to communicate
-    to instruments. Inherit from either class VISAAdapter14 or VISAAdapter15.
+    with instruments.
 
     :param resource: VISA resource name that identifies the address
+    :param visa_library: VisaLibrary Instance, path of the VISA library or VisaLibrary spec string (@py or @ni).
+                         if not given, the default for the platform will be used.
     :param kwargs: Any valid key-word arguments for constructing a PyVISA instrument
     """
 
-    def __init__(self, resourceName, **kwargs):
-        # Check PyVisa version
-        version = float(self.version)
-        if version < 1.7:
-            raise NotImplementedError(
-                "PyVisa {} is no longer supported. Please upgrade to version 1.8 or later.".format(
-                    version))
+    def __init__(self, resourceName, visa_library='', **kwargs):
+        if not VISAAdapter.has_supported_version():
+            raise NotImplementedError("Please upgrade PyVISA to version 1.8 or later.")
 
         if isinstance(resourceName, int):
             resourceName = "GPIB0::%d::INSTR" % resourceName
         super(VISAAdapter, self).__init__()
         self.resource_name = resourceName
-        self.manager = visa.ResourceManager()
-        safeKeywords = ['resource_name', 'timeout', 'term_chars',
+        self.manager = visa.ResourceManager(visa_library)
+        safeKeywords = ['resource_name', 'timeout',
                         'chunk_size', 'lock', 'delay', 'send_end',
-                        'values_format', 'read_termination']
+                        'values_format', 'read_termination', 'write_termination']
         kwargsCopy = copy.deepcopy(kwargs)
         for key in kwargsCopy:
             if key not in safeKeywords:
@@ -68,14 +67,13 @@ class VISAAdapter(Adapter):
             **kwargs
         )
 
-    @property
-    def version(self):
-        """ The string of the PyVISA version in use
-        """
+    @staticmethod
+    def has_supported_version():
+        """ Returns True if the PyVISA version is greater than 1.8 """
         if hasattr(visa, '__version__'):
-            return visa.__version__
+            return parse_version(visa.__version__) >= parse_version('1.8')
         else:
-            return '1.4'
+            return False
 
     def __repr__(self):
         return "<VISAAdapter(resource='%s')>" % self.connection.resourceName
@@ -89,11 +87,20 @@ class VISAAdapter(Adapter):
 
     def read(self):
         """ Reads until the buffer is empty and returns the resulting
-        ASCII respone
+        ASCII response
 
         :returns: String ASCII response of the instrument.
         """
         return self.connection.read()
+
+    def read_bytes(self, size):
+        """ Reads specified number of bytes from the buffer and returns
+        the resulting ASCII response
+
+        :param size: Number of bytes to read from the buffer
+        :returns: String ASCII response of the instrument.
+        """
+        return self.connection.read_bytes(size)
 
     def ask(self, command):
         """ Writes the command to the instrument and returns the resulting

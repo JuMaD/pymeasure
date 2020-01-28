@@ -1,7 +1,7 @@
 #
 # This file is part of the PyMeasure package.
 #
-# Copyright (c) 2013-2017 PyMeasure Developers
+# Copyright (c) 2013-2019 PyMeasure Developers
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -28,8 +28,11 @@ from .mock import Mock
 from .resources import list_resources
 from .validators import discreteTruncate
 
+from . import advantest
 from . import agilent
+from . import ametek
 from . import anritsu
+from . import deltaelektronika
 from . import danfysik
 from . import fwbell
 from . import hp

@@ -1,7 +1,7 @@
 #
 # This file is part of the PyMeasure package.
 #
-# Copyright (c) 2013-2017 PyMeasure Developers
+# Copyright (c) 2013-2019 PyMeasure Developers
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -72,7 +72,12 @@ class Adapter(object):
         results = results.split(separator)
         for i, result in enumerate(results):
             try:
-                results[i] = cast(result)
+                if cast == bool:
+                    # Need to cast to float first since results are usually
+                    # strings and bool of a non-empty string is always True
+                    results[i] = bool(float(result))
+                else:
+                    results[i] = cast(result)
             except Exception:
                 pass  # Keep as string
         return results
